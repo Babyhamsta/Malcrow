@@ -1,0 +1,54 @@
+﻿<Window x:Class="Malcrow.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Malcrow"
+        mc:Ignorable="d"
+        Height="275" Width="733"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Background="Transparent"
+        AllowsTransparency="True">
+
+    <Border Background="#2E2E2E" CornerRadius="10">
+        <Grid Margin="0,0,0,10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="50"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" Background="#202124" CornerRadius="10,10,0,0" MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <DockPanel LastChildFill="True">
+                    <TextBlock Text="Malcrow" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="16" FontWeight="Bold"/>
+                    <Button Content="X" Width="30" Height="30" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" Background="Transparent" Foreground="White" BorderBrush="Transparent" Click="CloseButton_Click"/>
+                </DockPanel>
+            </Border>
+
+            <!-- Content -->
+            <Grid Grid.Row="1" Margin="10,10,10,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Main Content -->
+                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10,0,10,0">
+                        <ToggleButton x:Name="VMSpoofingButton" Content="VM Spoofing" Background="#3C4043" Foreground="White" BorderBrush="Transparent" Height="150" Width="150" Margin="10,0" Style="{StaticResource ModernToggleButtonStyle}" IsChecked="{Binding IsVMSpoofingButtonChecked}" Command="{Binding ToggleVMSpoofingCommand}" Checked="ToggleButton_Checked" Unchecked="ToggleButton_Unchecked"/>
+                        <ToggleButton x:Name="DecompileSpoofingButton" Content="Decompile Spoofing" Background="#3C4043" Foreground="White" BorderBrush="Transparent" Height="150" Width="150" Margin="10,0" Style="{StaticResource ModernToggleButtonStyle}" IsChecked="{Binding IsDecompileSpoofingButtonChecked}" Command="{Binding ToggleDecompileSpoofingCommand}" Checked="ToggleButton_Checked" Unchecked="ToggleButton_Unchecked"/>
+                        <ToggleButton x:Name="DebugSpoofingButton" Content="Debug Spoofing" Background="#3C4043" Foreground="White" BorderBrush="Transparent" Height="150" Width="150" Margin="10,0" Style="{StaticResource ModernToggleButtonStyle}" IsChecked="{Binding IsDebugSpoofingButtonChecked}" Command="{Binding ToggleDebugSpoofingCommand}" Checked="ToggleButton_Checked" Unchecked="ToggleButton_Unchecked"/>
+                        <ToggleButton x:Name="RegistrySpoofingButton" Content="Registry Spoofing" Background="#3C4043" Foreground="White" BorderBrush="Transparent" Height="150" Width="150" Margin="10,0" Style="{StaticResource ModernToggleButtonStyle}" IsChecked="{Binding IsRegistrySpoofingButtonChecked}" Command="{Binding ToggleRegistrySpoofingCommand}" Checked="ToggleButton_Checked" Unchecked="ToggleButton_Unchecked"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+
+            <!-- Footer -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,10">
+                <Button Content="Start" Width="80" Height="30" Background="#007ACC" Foreground="White" BorderBrush="Transparent" Margin="10,0" Style="{StaticResource ModernButtonStyle}"/>
+                <Button Content="Stop" Width="80" Height="30" Background="#D32F2F" Foreground="White" BorderBrush="Transparent" Margin="10,0" Style="{StaticResource ModernButtonStyle}"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
