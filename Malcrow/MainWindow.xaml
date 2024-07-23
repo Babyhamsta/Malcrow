@@ -3,24 +3,24 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
     xmlns:local="clr-namespace:Malcrow"
+    xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
-    xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
     Title="BetaUI"
     Width="310"
     Height="450"
     AllowsTransparency="True"
     Background="{x:Null}"
-    WindowStartupLocation="CenterScreen"
-    WindowStyle="None"
-    mc:Ignorable="d"
-    ShowTitleBar="False"
     ShowCloseButton="False"
     ShowMaxRestoreButton="False"
     ShowMinButton="False"
-    WindowButtonCommandsOverlayBehavior="Never">
+    ShowTitleBar="False"
+    WindowButtonCommandsOverlayBehavior="Never"
+    WindowStartupLocation="CenterScreen"
+    WindowStyle="None"
+    mc:Ignorable="d">
     <Grid>
         <Border
             x:Name="MainBorder"
@@ -41,73 +41,154 @@
                             FontSize="20"
                             Foreground="White" />
 
-                        <!-- CPU Area -->
-                        <Grid x:Name="CPUArea" Margin="0,10,0,0" Height="140">
-                            <Canvas Width="100" Height="100" Margin="94,11,94,29">
-                                <Ellipse Width="100" Height="100" Stroke="Gray" StrokeThickness="10"/>
-                                <Path x:Name="CPUPath"
-                                      Stroke="LightBlue"
-                                      StrokeThickness="10"
-                                      Data="M 50,10 A 40,40 0 1 1 50,90 A 40,40 0 1 1 50,10"
-                                      StrokeDashArray="0,100"
-                                      RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Canvas.Left="-0.534" Stretch="Fill" VerticalAlignment="Center" Width="100" Height="100" Canvas.Top="-0.536">
-                                    <Path.RenderTransform>
-                                        <RotateTransform Angle="0"/>
-                                    </Path.RenderTransform>
-                                </Path>
-                            </Canvas>
-                            <Label
-                                x:Name="CPUPercent"
-                                HorizontalAlignment="Center"
+                        <Border Height="200"
+                                Margin="0,10,0,0"
                                 VerticalAlignment="Top"
-                                Content="80%"
-                                FontFamily="/Malcrow;component/Graphics/Fonts/#Inter SemiBold"
-                                FontSize="16"
-                                Foreground="White"
-                                Margin="0,47,0,0" />
-                            <Label
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Top"
-                                Content="CPU"
-                                FontFamily="/Malcrow;component/Graphics/Fonts/#Inter SemiBold"
-                                FontSize="16"
-                                Foreground="White"
-                                Margin="0,116,0,0" />
-                        </Grid>
+                                CornerRadius="5,5,5,5">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0.5,0"
+                                                     EndPoint="0.5,1">
+                                    <LinearGradientBrush.RelativeTransform>
+                                        <TransformGroup>
+                                            <ScaleTransform CenterX="0.5"
+                                                            CenterY="0.5" />
+                                            <SkewTransform CenterX="0.5"
+                                                           CenterY="0.5" />
+                                            <RotateTransform Angle="45"
+                                                             CenterX="0.5"
+                                                             CenterY="0.5" />
+                                            <TranslateTransform />
+                                        </TransformGroup>
+                                    </LinearGradientBrush.RelativeTransform>
+                                    <GradientStop Color="#FF2F54EB" />
+                                    <GradientStop Offset="1"
+                                                  Color="#FF003EB3" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Grid>
+                                <!--  CPU Area  -->
+                                <Grid x:Name="CPUArea"
+                                      Margin="0,00,0,0">
+                                    <Canvas Width="160"
+                                            Height="160"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center">
+                                        <Ellipse Width="160"
+                                                 Height="160"
+                                                 Stroke="#3FFFFFFF"
+                                                 StrokeThickness="10" />
+                                        <Path x:Name="CPUPath"
+                                              Canvas.Left="0"
+                                              Canvas.Top="0"
+                                              Width="160"
+                                              Height="160"
+                                              HorizontalAlignment="Left"
+                                              VerticalAlignment="Center"
+                                              Data="M 50,10 A 40,40 0 1 1 50,90 A 40,40 0 1 1 50,10"
+                                              RenderTransformOrigin="0.5,0.5"
+                                              Stretch="Fill"
+                                              Stroke="White"
+                                              StrokeDashArray="0,100"
+                                              StrokeThickness="10">
+                                            <Path.RenderTransform>
+                                                <RotateTransform Angle="0" />
+                                            </Path.RenderTransform>
+                                        </Path>
+                                    </Canvas>
+                                    <Label x:Name="CPUPercent"
+                                           Margin="0,52,0,0"
+                                           Padding="0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Top"
+                                           Content="100%"
+                                           FontFamily="/Malcrow;component/Graphics/Fonts/#Oswald"
+                                           FontSize="45"
+                                           Foreground="White" />
+                                    <Label Margin="0,111,0,0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Top"
+                                           Content="CPU Usage"
+                                           FontFamily="/Malcrow;component/Graphics/Fonts/#Inter Regular"
+                                           FontSize="16"
+                                           Foreground="White" />
+                                    <Button x:Name="SwitchToRAMPageB"
+                                            Height="200"
+                                            Padding="10"
+                                            HorizontalAlignment="Right"
+                                            materialDesign:ElevationAssist.Elevation="Dp0"
+                                            materialDesign:RippleAssist.IsDisabled="True"
+                                            Background="{x:Null}"
+                                            BorderBrush="{x:Null}"
+                                            Click="SwitchToRAMPageB_Click"
+                                            Content="&gt;"
+                                            FontFamily="/Malcrow;component/Graphics/Fonts/#Inter Light"
+                                            FontSize="15"
+                                            Foreground="#99FFFFFF" />
+                                </Grid>
+                                <!--  RAM Area  -->
+                                <Grid x:Name="RAMArea"
+                                      Margin="0,00,0,0"
+                                      Visibility="Collapsed">
+                                    <Canvas Width="160"
+                                            Height="160"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center">
+                                        <Ellipse Width="160"
+                                                 Height="160"
+                                                 Stroke="#3FFFFFFF"
+                                                 StrokeThickness="10" />
+                                        <Path x:Name="RAMPath"
+                                              Canvas.Left="0"
+                                              Canvas.Top="0"
+                                              Width="160"
+                                              Height="160"
+                                              HorizontalAlignment="Left"
+                                              VerticalAlignment="Center"
+                                              Data="M 50,10 A 40,40 0 1 1 50,90 A 40,40 0 1 1 50,10"
+                                              RenderTransformOrigin="0.5,0.5"
+                                              Stretch="Fill"
+                                              Stroke="White"
+                                              StrokeDashArray="0,100"
+                                              StrokeThickness="10">
+                                            <Path.RenderTransform>
+                                                <RotateTransform Angle="0" />
+                                            </Path.RenderTransform>
+                                        </Path>
+                                    </Canvas>
+                                    <Label x:Name="RAMPercent"
+                                           Margin="0,52,0,0"
+                                           Padding="0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Top"
+                                           Content="100%"
+                                           FontFamily="/Malcrow;component/Graphics/Fonts/#Oswald"
+                                           FontSize="45"
+                                           Foreground="White" />
+                                    <Label Margin="0,111,0,0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Top"
+                                           Content="RAM Usage"
+                                           FontFamily="/Malcrow;component/Graphics/Fonts/#Inter Regular"
+                                           FontSize="16"
+                                           Foreground="White" />
+                                    <Button x:Name="SwitchToCPUPageB"
+                                            Height="200"
+                                            Padding="10"
+                                            HorizontalAlignment="Left"
+                                            materialDesign:ElevationAssist.Elevation="Dp0"
+                                            materialDesign:RippleAssist.IsDisabled="True"
+                                            Background="{x:Null}"
+                                            BorderBrush="{x:Null}"
+                                            Click="SwitchToCPUPageB_Click"
+                                            Content="&lt;"
+                                            FontFamily="/Malcrow;component/Graphics/Fonts/#Inter Light"
+                                            FontSize="15"
+                                            Foreground="#99FFFFFF" />
+                                </Grid>
+                            </Grid>
 
-                        <!-- RAM Area -->
-                        <Grid x:Name="RAMArea" Margin="0,10,0,0" Height="140">
-                            <Canvas Width="100" Height="100" Margin="94,11,94,29">
-                                <Ellipse Width="100" Height="100" Stroke="Gray" StrokeThickness="10"/>
-                                <Path x:Name="RAMPath"
-                                      Stroke="LightGreen"
-                                      StrokeThickness="10"
-                                      Data="M 50,10 A 40,40 0 1 1 50,90 A 40,40 0 1 1 50,10"
-                                      StrokeDashArray="0,100"
-                                      RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Canvas.Left="-0.534" Stretch="Fill" VerticalAlignment="Center" Width="100" Height="100" Canvas.Top="-0.536">
-                                    <Path.RenderTransform>
-                                        <RotateTransform Angle="0"/>
-                                    </Path.RenderTransform>
-                                </Path>
-                            </Canvas>
-                            <Label
-                                x:Name="RAMPercent"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Top"
-                                Content="80%"
-                                FontFamily="/Malcrow;component/Graphics/Fonts/#Inter SemiBold"
-                                FontSize="16"
-                                Foreground="White"
-                                Margin="0,47,0,0" />
-                            <Label
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Top"
-                                Content="RAM"
-                                FontFamily="/Malcrow;component/Graphics/Fonts/#Inter SemiBold"
-                                FontSize="16"
-                                Foreground="White"
-                                Margin="0,116,0,0" />
-                        </Grid>
+                        </Border>
+
                     </StackPanel>
                     <Button
                         Margin="10,0,52,10"
@@ -125,9 +206,9 @@
                         materialDesign:ButtonAssist.CornerRadius="5"
                         Background="{DynamicResource TransparentWhite}"
                         BorderThickness="0"
+                        Click="SettingsCog_Click"
                         Content="cog"
-                        FontFamily="/Malcrow;component/Graphics/Fonts/#Font Awesome 6 Free Solid"
-                        Click="SettingsCog_Click"/>
+                        FontFamily="/Malcrow;component/Graphics/Fonts/#Font Awesome 6 Free Solid" />
                 </Grid>
                 <Grid Margin="0,40,0,0" Visibility="Collapsed" />
                 <Grid
@@ -151,11 +232,11 @@
                         Background="{x:Null}"
                         BorderBrush="{x:Null}"
                         BorderThickness="0,0,0,0"
+                        Click="CloseButton_Click"
                         Content="&#xE8BB;"
                         FontFamily="Segoe MDL2 Assets"
                         FontSize="10"
-                        Foreground="White"
-                        Click="CloseButton_Click" />
+                        Foreground="White" />
                     <Button
                         x:Name="Minimize"
                         Margin="0,0,40,0"
@@ -166,45 +247,54 @@
                         Background="{x:Null}"
                         BorderBrush="{x:Null}"
                         BorderThickness="0,0,0,0"
+                        Click="MinimizeButton_Click"
                         Content="&#xE921;"
                         FontFamily="Segoe MDL2 Assets"
                         FontSize="10"
-                        Foreground="White"
-                        Click="MinimizeButton_Click"/>
+                        Foreground="White" />
                 </Grid>
             </Grid>
         </Border>
     </Grid>
     <mah:MetroWindow.Flyouts>
         <mah:FlyoutsControl>
-            <mah:Flyout x:Name="FirstFlyout" Position="Right" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Background="#FF1F1F1F">
+            <mah:Flyout
+                x:Name="FirstFlyout"
+                Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=mah:MetroWindow}}"
+                HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch"
+                Background="#FF1F1F1F"
+                Position="Right">
                 <mah:Flyout.HeaderTemplate>
                     <DataTemplate>
                         <DockPanel VerticalAlignment="Center">
-                            <Button Click="BackButton_Click"
-                                Background="Transparent"
-                                Foreground="White"
-                                BorderBrush="Transparent"
+                            <Button
                                 Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                Click="BackButton_Click"
                                 DockPanel.Dock="Left"
-                                VerticalAlignment="Center">
+                                Foreground="White">
                                 <StackPanel Orientation="Horizontal">
-                                    <iconPacks:PackIconMaterial Kind="ArrowRightCircleOutline"
-                                                            Width="24"
-                                                            Height="24"
-                                                            VerticalAlignment="Center"/>
+                                    <iconPacks:PackIconMaterial
+                                        Width="24"
+                                        Height="24"
+                                        VerticalAlignment="Center"
+                                        Kind="ArrowRightCircleOutline" />
                                 </StackPanel>
                             </Button>
-                            <TextBlock Text="Settings"
-                                   VerticalAlignment="Center"
-                                   Foreground="White"
-                                   FontFamily="/Malcrow;component/Graphics/Fonts/#Inter SemiBold"
-                                   FontSize="16"/>
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                FontFamily="/Malcrow;component/Graphics/Fonts/#Inter SemiBold"
+                                FontSize="16"
+                                Foreground="White"
+                                Text="Settings" />
                         </DockPanel>
                     </DataTemplate>
                 </mah:Flyout.HeaderTemplate>
                 <Grid>
-                    <!-- The content goes here -->
+                    <!--  The content goes here  -->
                 </Grid>
             </mah:Flyout>
         </mah:FlyoutsControl>

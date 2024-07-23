@@ -58,5 +58,21 @@ namespace Malcrow
             RAMPath.StrokeDashArray = new DoubleCollection { fullCircle * percentage, fullCircle * (1 - percentage) };
             RAMPercent.Content = $"{usage.ToString()}%";
         }
+
+        #region Switch Statistics Pages
+
+        private void SwitchToRAMPageB_Click(object sender, RoutedEventArgs e)
+        {
+            CPUArea.Visibility = Visibility.Collapsed;
+            RAMArea.Visibility = Visibility.Visible;
+        }
+
+        private void SwitchToCPUPageB_Click(object sender, RoutedEventArgs e)
+        {
+            CPUArea.Visibility = Visibility.Visible;
+            RAMArea.Visibility = Visibility.Collapsed;
+        }
+
+        #endregion
     }
 }
