@@ -14,9 +14,16 @@ namespace Malcrow
         public BetaUI()
         {
             InitializeComponent();
-            UpdateCPUUsage(90);
+
+            // Load ViewModels
+            DataContext = new SettingsViewModel();
+
+            // Set initial CPU/RAM amounts
+            UpdateCPUUsage(1);
             UpdateRAMUsage(5);
         }
+
+        #region Form Buttons and Functions
 
         private void DragForm(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
@@ -35,29 +42,15 @@ namespace Malcrow
 
         private void SettingsCog_Click(object sender, RoutedEventArgs e)
         {
-            FirstFlyout.IsOpen = !FirstFlyout.IsOpen;
+            SettingsFlyout.IsOpen = !SettingsFlyout.IsOpen;
         }
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
         {
-            FirstFlyout.IsOpen = false;
+            SettingsFlyout.IsOpen = false;
         }
 
-        private void UpdateCPUUsage(double usage)
-        {
-            double percentage = usage / 100.0;
-            double fullCircle = 28.3;
-            CPUPath.StrokeDashArray = new DoubleCollection { fullCircle * percentage, fullCircle * (1 - percentage) };
-            CPUPercent.Content = $"{usage.ToString()}%";
-        }
-
-        private void UpdateRAMUsage(double usage)
-        {
-            double percentage = usage / 100.0;
-            double fullCircle = 28.3;
-            RAMPath.StrokeDashArray = new DoubleCollection { fullCircle * percentage, fullCircle * (1 - percentage) };
-            RAMPercent.Content = $"{usage.ToString()}%";
-        }
+        #endregion
 
         #region Switch Statistics Pages
 
@@ -74,5 +67,21 @@ namespace Malcrow
         }
 
         #endregion
+
+        private void UpdateCPUUsage(double usage)
+        {
+            double percentage = usage / 100.0;
+            double fullCircle = 47.1;
+            CPUPath.StrokeDashArray = new DoubleCollection { fullCircle * percentage, fullCircle * (1 - percentage) };
+            CPUPercent.Content = $"{usage.ToString()}%";
+        }
+
+        private void UpdateRAMUsage(double usage)
+        {
+            double percentage = usage / 100.0;
+            double fullCircle = 47.1;
+            RAMPath.StrokeDashArray = new DoubleCollection { fullCircle * percentage, fullCircle * (1 - percentage) };
+            RAMPercent.Content = $"{usage.ToString()}%";
+        }
     }
 }

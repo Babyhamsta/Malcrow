@@ -196,6 +196,7 @@
     </Compile>
     <Compile Include="Tools\Registry.cs" />
     <Compile Include="Tools\Software.cs" />
+    <Compile Include="ViewModels\SettingsViewModel.cs" />
     <Page Include="MainWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

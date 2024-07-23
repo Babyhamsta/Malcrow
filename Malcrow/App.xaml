@@ -167,6 +167,12 @@
                 <Setter Property="Margin"
                         Value="5" />
             </Style>
+
+            <Style TargetType="Rectangle" x:Key="PageSectionSeparator">
+                <Setter Property="Margin" Value="24, 15, 24, 15" />
+                <Setter Property="Height" Value="1" />
+                <Setter Property="Fill" Value="#aaa" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
