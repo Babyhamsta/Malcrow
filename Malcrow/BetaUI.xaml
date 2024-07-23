@@ -53,7 +53,8 @@
                                 </LinearGradientBrush>
                             </Border.BorderBrush>
                             <Grid Margin="0">
-                                <Border CornerRadius="5"
+                                <Border x:Name="CPUBorderEmphasis"
+                                        CornerRadius="5"
                                         Margin="0,0,58,0">
                                     <Border.Background>
                                         <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
@@ -115,7 +116,8 @@
                                 </LinearGradientBrush>
                             </Border.BorderBrush>
                             <Grid Margin="0">
-                                <Border CornerRadius="5"
+                                <Border x:Name="RAMBorderEmphasis"
+                                        CornerRadius="5"
                                         Margin="0,0,58,0">
                                     <Border.Background>
                                         <LinearGradientBrush StartPoint="0.5,0"
