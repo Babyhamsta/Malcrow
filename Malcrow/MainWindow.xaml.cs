@@ -1,21 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using MahApps.Metro.Controls;
 using System.Windows;
-using System.Windows.Controls.Primitives;
-using System.Windows.Documents;
+using System.Windows.Media;
 
 namespace Malcrow
 {
-    public partial class MainWindow : Window
+    /// <summary>
+    /// Interaction logic for BetaUI.xaml
+    /// </summary>
+    public partial class BetaUI : MetroWindow
     {
         private Tools.Registry registry = new Tools.Registry();
 
-        public MainWindow()
+        public BetaUI()
         {
             InitializeComponent();
+            UpdateCPUUsage(90);
+            UpdateRAMUsage(5);
         }
 
-        private void Header_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void DragForm(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             DragMove();
         }
@@ -25,90 +28,35 @@ namespace Malcrow
             Close();
         }
 
-        private void ToggleButton_Checked(object sender, RoutedEventArgs e)
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
         {
-            ToggleButton button = sender as ToggleButton;
-            if (button != null)
-            {
-                switch (button.Name)
-                {
-                    case "VMSpoofingButton":
-                        VMSpoofingOn();
-                        break;
-                    case "DecompileSpoofingButton":
-                        DecompileSpoofingOn();
-                        break;
-                    case "DebugSpoofingButton":
-                        DebugSpoofingOn();
-                        break;
-                    case "RegistrySpoofingButton":
-                        RegistrySpoofingOn();
-                        break;
-                }
-            }
+            WindowState = WindowState.Minimized;
         }
 
-        private void ToggleButton_Unchecked(object sender, RoutedEventArgs e)
+        private void SettingsCog_Click(object sender, RoutedEventArgs e)
         {
-            ToggleButton button = sender as ToggleButton;
-            if (button != null)
-            {
-                switch (button.Name)
-                {
-                    case "VMSpoofingButton":
-                        VMSpoofingOff();
-                        break;
-                    case "DecompileSpoofingButton":
-                        DecompileSpoofingOff();
-                        break;
-                    case "DebugSpoofingButton":
-                        DebugSpoofingOff();
-                        break;
-                    case "RegistrySpoofingButton":
-                        RegistrySpoofingOff();
-                        break;
-                }
-            }
+            FirstFlyout.IsOpen = !FirstFlyout.IsOpen;
         }
 
-        private void VMSpoofingOn()
+        private void BackButton_Click(object sender, RoutedEventArgs e)
         {
-            // Implement the logic for VM Spoofing On
+            FirstFlyout.IsOpen = false;
         }
 
-        private void VMSpoofingOff()
+        private void UpdateCPUUsage(double usage)
         {
-            // Implement the logic for VM Spoofing Off
+            double percentage = usage / 100.0;
+            double fullCircle = 28.3;
+            CPUPath.StrokeDashArray = new DoubleCollection { fullCircle * percentage, fullCircle * (1 - percentage) };
+            CPUPercent.Content = $"{usage.ToString()}%";
         }
 
-        private void DecompileSpoofingOn()
+        private void UpdateRAMUsage(double usage)
         {
-            // Implement the logic for Decompile Spoofing On
-        }
-
-        private void DecompileSpoofingOff()
-        {
-            // Implement the logic for Decompile Spoofing Off
-        }
-
-        private void DebugSpoofingOn()
-        {
-            // Implement the logic for Debug Spoofing On
-        }
-
-        private void DebugSpoofingOff()
-        {
-            // Implement the logic for Debug Spoofing Off
-        }
-
-        private void RegistrySpoofingOn()
-        {
-            // Implement the logic for Registry Spoofing On
-        }
-
-        private void RegistrySpoofingOff()
-        {
-            // Implement the logic for Registry Spoofing Off
+            double percentage = usage / 100.0;
+            double fullCircle = 28.3;
+            RAMPath.StrokeDashArray = new DoubleCollection { fullCircle * percentage, fullCircle * (1 - percentage) };
+            RAMPercent.Content = $"{usage.ToString()}%";
         }
     }
 }
