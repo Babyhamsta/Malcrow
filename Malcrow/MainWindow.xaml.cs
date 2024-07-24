@@ -19,8 +19,8 @@ namespace Malcrow
             DataContext = new SettingsViewModel();
 
             // Set initial CPU/RAM amounts
-            UpdateCPUUsage(1);
-            UpdateRAMUsage(5);
+            UpdateCPUUsage(0);
+            UpdateRAMUsage(0);
         }
 
         #region Form Buttons and Functions
@@ -52,7 +52,7 @@ namespace Malcrow
 
         #endregion
 
-        #region Switch Statistics Pages
+        #region Main Screen Functions
 
         private void SwitchToRAMPageB_Click(object sender, RoutedEventArgs e)
         {
@@ -65,8 +65,6 @@ namespace Malcrow
             CPUArea.Visibility = Visibility.Visible;
             RAMArea.Visibility = Visibility.Collapsed;
         }
-
-        #endregion
 
         private void UpdateCPUUsage(double usage)
         {
@@ -83,5 +81,7 @@ namespace Malcrow
             RAMPath.StrokeDashArray = new DoubleCollection { fullCircle * percentage, fullCircle * (1 - percentage) };
             RAMPercent.Content = $"{usage.ToString()}%";
         }
+
+        #endregion
     }
 }
