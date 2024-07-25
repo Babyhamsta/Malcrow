@@ -8,9 +8,9 @@ using System.Windows;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("Malcrow")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("A scarecrow for potential malware by mocking a potential analysis environment")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("Justin James")]
 [assembly: AssemblyProduct("Malcrow")]
 [assembly: AssemblyCopyright("Copyright ©  2024")]
 [assembly: AssemblyTrademark("")]
