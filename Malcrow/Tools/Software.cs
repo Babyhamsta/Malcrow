@@ -8,8 +8,10 @@ namespace Malcrow.Tools
 {
     internal class Software
     {
-        private Dictionary<string, List<string>> softwares;
-        private Random random;
+        public static List<int> processIds = new List<int>();
+
+        private static Dictionary<string, List<string>> softwares;
+        private static Random random;
 
         public Software()
         {
@@ -210,7 +212,7 @@ namespace Malcrow.Tools
 
         // Get a certain amount of random software names from certain categories.
         // Example: GetRandomSoftware("AntivirusSoftware", 5);
-        public List<string> GetRandomSoftware(string category, int amount)
+        public static List<string> GetRandomSoftware(string category, int amount)
         {
             if (softwares.ContainsKey(category))
             {
@@ -233,7 +235,7 @@ namespace Malcrow.Tools
         }
 
         // Gets random names from all categories in a certain amount.
-        public List<string> GetRandomSoftwares(int amount)
+        public static List<string> GetRandomSoftwares(int amount)
         {
             var allKeys = new List<string>();
             foreach (var category in softwares.Keys)
@@ -253,7 +255,7 @@ namespace Malcrow.Tools
         }
 
         // Returns all the names for a certain category, good for broad detection
-        public List<string> GetAllSoftwares(string category)
+        public static List<string> GetAllSoftwares(string category)
         {
             if (softwares.ContainsKey(category))
             {
