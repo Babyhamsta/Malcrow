@@ -1,142 +1,114 @@
-﻿using MahApps.Metro.Controls;
+﻿using System;
+using System.Collections.Generic;
 using System.Windows;
-using System.Windows.Media;
-using System.Windows.Forms;
-using System;
-using System.Drawing;
+using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 
 namespace Malcrow
 {
-    /// <summary>
-    /// Interaction logic for BetaUI.xaml
-    /// </summary>
-    public partial class BetaUI : MetroWindow
+    public partial class MainWindow : Window
     {
-        private NotifyIcon _notifyIcon;
         private Tools.Registry registry = new Tools.Registry();
 
-        public BetaUI()
+        public MainWindow()
         {
             InitializeComponent();
-            InitializeTrayIcon();
-
-            // Load ViewModels
-            DataContext = new SettingsViewModel();
-
-            // Set initial CPU/RAM amounts
-            UpdateCPUUsage(0);
-            UpdateRAMUsage(0);
         }
 
-        #region App Tray
-
-        private void InitializeTrayIcon()
-        {
-            _notifyIcon = new NotifyIcon();
-            _notifyIcon.Icon = new System.Drawing.Icon(System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/Malcrow-RedSquare.ico")).Stream);
-            _notifyIcon.Visible = false;
-            _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
-
-            // Create context menu for tray icon
-            var contextMenu = new ContextMenu();
-            contextMenu.MenuItems.Add("Open", (s, e) => ShowMainWindow());
-            contextMenu.MenuItems.Add("Exit", (s, e) => Close());
-
-            _notifyIcon.ContextMenu = contextMenu;
-        }
-
-        private void MinimizeToTray()
-        {
-            _notifyIcon.Visible = true;
-            Hide();
-        }
-
-        private void ShowMainWindow()
-        {
-            Show();
-            WindowState = WindowState.Normal;
-            _notifyIcon.Visible = false;
-        }
-
-        private void NotifyIcon_DoubleClick(object sender, EventArgs e)
-        {
-            ShowMainWindow();
-        }
-
-        #endregion
-
-        #region Form Buttons and Functions
-
-        private void DragForm(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void Header_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             DragMove();
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
-            MinimizeToTray();
+            Close();
         }
 
-        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        private void ToggleButton_Checked(object sender, RoutedEventArgs e)
         {
-            MinimizeToTray();
-        }
-
-        private void SettingsCog_Click(object sender, RoutedEventArgs e)
-        {
-            SettingsFlyout.IsOpen = !SettingsFlyout.IsOpen;
-        }
-
-        private void BackButton_Click(object sender, RoutedEventArgs e)
-        {
-            SettingsFlyout.IsOpen = false;
-        }
-
-        private void Window_StateChanged(object sender, EventArgs e)
-        {
-            if (WindowState == WindowState.Minimized)
+            ToggleButton button = sender as ToggleButton;
+            if (button != null)
             {
-                MinimizeToTray();
+                switch (button.Name)
+                {
+                    case "VMSpoofingButton":
+                        VMSpoofingOn();
+                        break;
+                    case "DecompileSpoofingButton":
+                        DecompileSpoofingOn();
+                        break;
+                    case "DebugSpoofingButton":
+                        DebugSpoofingOn();
+                        break;
+                    case "RegistrySpoofingButton":
+                        RegistrySpoofingOn();
+                        break;
+                }
             }
         }
 
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private void ToggleButton_Unchecked(object sender, RoutedEventArgs e)
         {
-            _notifyIcon.Visible = false;
+            ToggleButton button = sender as ToggleButton;
+            if (button != null)
+            {
+                switch (button.Name)
+                {
+                    case "VMSpoofingButton":
+                        VMSpoofingOff();
+                        break;
+                    case "DecompileSpoofingButton":
+                        DecompileSpoofingOff();
+                        break;
+                    case "DebugSpoofingButton":
+                        DebugSpoofingOff();
+                        break;
+                    case "RegistrySpoofingButton":
+                        RegistrySpoofingOff();
+                        break;
+                }
+            }
         }
 
-        #endregion
-
-        #region Main Screen Functions
-
-        private void SwitchToRAMPageB_Click(object sender, RoutedEventArgs e)
+        private void VMSpoofingOn()
         {
-            CPUArea.Visibility = Visibility.Collapsed;
-            RAMArea.Visibility = Visibility.Visible;
+            // Implement the logic for VM Spoofing On
         }
 
-        private void SwitchToCPUPageB_Click(object sender, RoutedEventArgs e)
+        private void VMSpoofingOff()
         {
-            CPUArea.Visibility = Visibility.Visible;
-            RAMArea.Visibility = Visibility.Collapsed;
+            // Implement the logic for VM Spoofing Off
         }
 
-        private void UpdateCPUUsage(double usage)
+        private void DecompileSpoofingOn()
         {
-            double percentage = usage / 100.0;
-            double fullCircle = 47.1;
-            CPUPath.StrokeDashArray = new DoubleCollection { fullCircle * percentage, fullCircle * (1 - percentage) };
-            CPUPercent.Content = $"{usage.ToString()}%";
+            // Implement the logic for Decompile Spoofing On
         }
 
-        private void UpdateRAMUsage(double usage)
+        private void DecompileSpoofingOff()
         {
-            double percentage = usage / 100.0;
-            double fullCircle = 47.1;
-            RAMPath.StrokeDashArray = new DoubleCollection { fullCircle * percentage, fullCircle * (1 - percentage) };
-            RAMPercent.Content = $"{usage.ToString()}%";
+            // Implement the logic for Decompile Spoofing Off
         }
 
-        #endregion
+        private void DebugSpoofingOn()
+        {
+            // Implement the logic for Debug Spoofing On
+        }
+
+        private void DebugSpoofingOff()
+        {
+            // Implement the logic for Debug Spoofing Off
+        }
+
+        private void RegistrySpoofingOn()
+        {
+            // Implement the logic for Registry Spoofing On
+        }
+
+        private void RegistrySpoofingOff()
+        {
+            // Implement the logic for Registry Spoofing Off
+        }
     }
 }
