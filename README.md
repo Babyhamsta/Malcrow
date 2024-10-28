@@ -14,7 +14,7 @@ The goal of this program is to be a better version of Cyber Scarecrow and to be 
 Malcrow does the following things currently:
 - Auto creates, shuffles the hash, and runs the fake processes based on what settings you have set (Hash shuffling is to prevent detections from malware)
 - Uses very little CPU/RAM power with the fake processes
-- Monitors the background processes and provides CPU/RAM usage on main screen
+- Monitors all the created background processes and provides CPU/RAM usage on main screen
 - All fake processes close automatically if the main processes gets terminated
 - All fake processes auto delete after closing (if not terminated)
 - Creates registry keys and stores them in a local file so they can be deleted on next launch if process is terminated
