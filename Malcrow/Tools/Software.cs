@@ -1,4 +1,5 @@
-﻿using System;
+﻿//software.cs
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,12 +10,13 @@ namespace Malcrow.Tools
     internal class Software
     {
         public static List<int> processIds = new List<int>();
+        private static readonly Dictionary<string, List<string>> softwares;
+        private static readonly Random random;
 
-        private static Dictionary<string, List<string>> softwares;
-        private static Random random;
-
-        public Software()
+        static Software()
         {
+            random = new Random();
+
             // Known common exe names that are found in analysis environments
             softwares = new Dictionary<string, List<string>>
             {
@@ -206,49 +208,53 @@ namespace Malcrow.Tools
                     }
                 }
             };
-
-            random = new Random();
         }
 
         // Get a certain amount of random software names from certain categories.
         // Example: GetRandomSoftware("AntivirusSoftware", 5);
         public static List<string> GetRandomSoftware(string category, int amount)
         {
-            if (softwares.ContainsKey(category))
-            {
-                var keys = softwares[category];
-                var randomSoftwares = new List<string>();
+            if (string.IsNullOrEmpty(category))
+                throw new ArgumentNullException(nameof(category));
 
-                for (int i = 0; i < amount && keys.Count > 0; i++)
-                {
-                    int index = random.Next(keys.Count);
-                    randomSoftwares.Add(keys[index]);
-                    keys.RemoveAt(index);
-                }
+            if (amount < 0)
+                throw new ArgumentException("Amount must be non-negative", nameof(amount));
 
-                return randomSoftwares;
-            }
-            else
-            {
+            if (!softwares.ContainsKey(category))
                 return null;
+
+            // Create a copy of the list to avoid modifying the original
+            var availableSoftware = new List<string>(softwares[category]);
+            var randomSoftwares = new List<string>();
+
+            amount = Math.Min(amount, availableSoftware.Count);
+
+            for (int i = 0; i < amount; i++)
+            {
+                int index = random.Next(availableSoftware.Count);
+                randomSoftwares.Add(availableSoftware[index]);
+                availableSoftware.RemoveAt(index);
             }
+
+            return randomSoftwares;
         }
 
         // Gets random names from all categories in a certain amount.
         public static List<string> GetRandomSoftwares(int amount)
         {
-            var allKeys = new List<string>();
-            foreach (var category in softwares.Keys)
-            {
-                allKeys.AddRange(softwares[category]);
-            }
+            if (amount < 0)
+                throw new ArgumentException("Amount must be non-negative", nameof(amount));
 
+            var allSoftware = softwares.Values.SelectMany(x => x).ToList();
             var randomSoftwares = new List<string>();
-            for (int i = 0; i < amount && allKeys.Count > 0; i++)
+
+            amount = Math.Min(amount, allSoftware.Count);
+
+            for (int i = 0; i < amount; i++)
             {
-                int index = random.Next(allKeys.Count);
-                randomSoftwares.Add(allKeys[index]);
-                allKeys.RemoveAt(index);
+                int index = random.Next(allSoftware.Count);
+                randomSoftwares.Add(allSoftware[index]);
+                allSoftware.RemoveAt(index);
             }
 
             return randomSoftwares;
@@ -257,14 +263,12 @@ namespace Malcrow.Tools
         // Returns all the names for a certain category, good for broad detection
         public static List<string> GetAllSoftwares(string category)
         {
-            if (softwares.ContainsKey(category))
-            {
-                return new List<string>(softwares[category]);
-            }
-            else
-            {
-                return null;
-            }
+            if (string.IsNullOrEmpty(category))
+                throw new ArgumentNullException(nameof(category));
+
+            return softwares.ContainsKey(category)
+                ? new List<string>(softwares[category])
+                : null;
         }
     }
 }

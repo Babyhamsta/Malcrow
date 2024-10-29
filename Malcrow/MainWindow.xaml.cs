@@ -1,4 +1,5 @@
-﻿using MahApps.Metro.Controls;
+﻿//MAINWINDOW.cs
+using MahApps.Metro.Controls;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Forms;
@@ -18,11 +19,12 @@ namespace Malcrow
     public partial class BetaUI : MetroWindow
     {
         private readonly Tools.Registry _registry = new Tools.Registry();
-        private readonly Tools.Software _software = new Tools.Software();
+        private readonly SoftwareManager _softwareManager;
+        private readonly RegistryManager _registryManager;
+        private readonly List<string> _activeRegistryKeys = new List<string>();
 
         private NotifyIcon _notifyIcon;
         private readonly BackgroundWorker _backgroundWorker = new BackgroundWorker();
-        private readonly Dictionary<string, int> _processDirectories = new Dictionary<string, int>();
         private readonly Logger _logger = new Logger("Malcrow_log.txt");
 
         public BetaUI()
@@ -31,12 +33,16 @@ namespace Malcrow
             InitializeComponent();
             InitializeTrayIcon();
 
+            _softwareManager = new SoftwareManager(new LoggerAdapter(_logger));
+            _registryManager = new RegistryManager(new LoggerAdapter(_logger));
+
             _backgroundWorker.DoWork += BackgroundWorker_DoWork;
             _backgroundWorker.WorkerSupportsCancellation = true;
             DataContext = new SettingsViewModel();
 
             UpdateCPUUsage(0);
             UpdateRAMUsage(0);
+            UpdateRegistryKeyCount(0);
         }
 
         #region App Tray
@@ -100,13 +106,37 @@ namespace Malcrow
         {
             if (!_backgroundWorker.IsBusy)
             {
-                _logger.LogInfo($"Start button clicked, starting background software/registry creator.");
-                StartStopButton.Content = "Stop Monitoring";
-                StartStopButton.Background = (Brush)new BrushConverter().ConvertFromString("#4c4c4c");
+                try
+                {
+                    _logger.LogInfo($"Start button clicked, starting background software/registry creator.");
+                    StartStopButton.Content = "Stop Monitoring";
+                    StartStopButton.Background = (Brush)new BrushConverter().ConvertFromString("#4c4c4c");
 
-                await LaunchApplicationsAsync(new List<string> { "Debuggers", "VirtualMachines", "SandboxingTools" }, 10);
+                    // Create registry keys
+                    var registryKeys = _registry.GetRandomRegistryKeys(10);
+                    _registryManager.CreateRegistryKeys(registryKeys);
+                    _activeRegistryKeys.Clear();
+                    _activeRegistryKeys.AddRange(registryKeys);
+                    UpdateRegistryKeyCount(_registryManager.CreatedKeyCount);
 
-                _backgroundWorker.RunWorkerAsync();
+                    // Launch software processes
+                    await _softwareManager.LaunchSoftwareAsync(
+                        new List<string> { "Debuggers", "VirtualMachines", "SandboxingTools" },
+                        10
+                    );
+
+                    _backgroundWorker.RunWorkerAsync();
+                    UpdateSoftwareCount(_softwareManager.ActiveProcessCount);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Error starting monitoring: {ex.Message}");
+                    // Cleanup in case of error
+                    _registryManager.CleanupRegistryKeys();
+                    _softwareManager.CleanupAllProcesses();
+                    StartStopButton.Content = "Start Monitoring";
+                    StartStopButton.Background = (Brush)new BrushConverter().ConvertFromString("#A80000");
+                }
             }
             else
             {
@@ -115,9 +145,14 @@ namespace Malcrow
                 StartStopButton.Background = (Brush)new BrushConverter().ConvertFromString("#A80000");
 
                 _backgroundWorker.CancelAsync();
-                CloseAllOpenSoftwares();
 
-                SoftwareAmt.Content = "0";
+                // Cleanup everything
+                _softwareManager.CleanupAllProcesses();
+                _registryManager.CleanupRegistryKeys();
+                _activeRegistryKeys.Clear();
+
+                UpdateRegistryKeyCount(0);
+                UpdateSoftwareCount(0);
                 UpdateCPUUsage(0);
                 UpdateRAMUsage(0);
             }
@@ -144,6 +179,8 @@ namespace Malcrow
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             _logger.LogInfo($"Application closing, cleaning up..");
+            _softwareManager.CleanupAllProcesses();
+            _registryManager.CleanupRegistryKeys();
             _notifyIcon.Visible = false;
         }
 
@@ -185,217 +222,97 @@ namespace Malcrow
             });
         }
 
+        private void UpdateRegistryKeyCount(int count)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                RegistryAmt.Content = count.ToString();
+            });
+        }
+
+        private void UpdateSoftwareCount(int count)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                SoftwareAmt.Content = count.ToString();
+            });
+        }
+
         #endregion
 
-        #region Process Watcher and Performance Monitor
-
-        private async Task LaunchApplicationsAsync(List<string> categories, int amount)
-        {
-            foreach (var category in categories)
-            {
-                List<string> softwareList = Software.GetRandomSoftware(category, amount);
-                if (softwareList != null)
-                {
-                    foreach (string software in softwareList)
-                    {
-                        string uniqueDir = Path.Combine("Fake_Processes", Guid.NewGuid().ToString());
-                        Directory.CreateDirectory(uniqueDir);
-
-                        string appPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Malcrow_Fake_Process.exe");
-
-                        if (!File.Exists(appPath))
-                        {
-                            _logger.LogError($"The application 'Malcrow_Fake_Process.exe' does not exist in the current directory.");
-                            continue;
-                        }
-
-                        var startInfo = new ProcessStartInfo
-                        {
-                            FileName = appPath,
-                            Arguments = software,
-                            UseShellExecute = false,
-                            RedirectStandardOutput = true,
-                            RedirectStandardError = true,
-                            CreateNoWindow = true,
-                            WorkingDirectory = uniqueDir
-                        };
-
-                        try
-                        {
-                            _logger.LogInfo($"Starting process {software}, in folder {uniqueDir}");
-                            var process = Process.Start(startInfo);
-                            _processDirectories.Add(uniqueDir, process.Id);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError($"Failed to start '{appPath}' with argument '{software}': {ex.Message}");
-                        }
-                    }
-                }
-                else
-                {
-                    _logger.LogError($"The category '{category}' does not exist.");
-                }
-            }
-        }
-
-        private void CloseAllOpenSoftwares()
-        {
-            var directoriesToRemove = new List<string>();
-
-            foreach (var entry in _processDirectories.ToList())
-            {
-                string dir = entry.Key;
-                int pid = entry.Value;
-
-                try
-                {
-                    var process = Process.GetProcessById(pid);
-                    process.Kill();
-                    directoriesToRemove.Add(dir);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Error closing process {pid}: {ex.Message}");
-                }
-            }
-
-            foreach (var dir in directoriesToRemove)
-            {
-                _processDirectories.Remove(dir);
-                CleanupDirectory(dir);
-                _logger.LogInfo($"Removed directory {dir} from tracking.");
-            }
-        }
-
-        private void CleanupDirectory(string directory)
-        {
-            try
-            {
-                Directory.Delete(directory, true);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error deleting directory {directory}: {ex.Message}");
-            }
-        }
+        #region Background Worker
 
         private void BackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
         {
             while (!_backgroundWorker.CancellationPending)
             {
-                double totalCpuUsage = 0;
-                double totalRamUsage = 0;
-                double totalMemory = GetTotalMemoryInBytes();
-
-                var directoriesToRemove = new List<string>();
-                var lockObj = new object();
-
-                Parallel.ForEach(_processDirectories.ToList(), entry =>
-                {
-                    string dir = entry.Key;
-                    int pid = entry.Value;
-
-                    try
-                    {
-                        var process = Process.GetProcessById(pid);
-                        double cpuUsage = GetCpuUsageForProcess(process);
-                        double ramUsage = GetRamUsageForProcess(process, totalMemory);
-
-                        lock (lockObj)
-                        {
-                            totalCpuUsage += cpuUsage;
-                            totalRamUsage += ramUsage;
-                        }
-                    }
-                    catch (ArgumentException)
-                    {
-                        var newProcess = CheckForNewProcess(dir);
-                        if (newProcess != null)
-                        {
-                            lock (lockObj)
-                            {
-                                _processDirectories[dir] = newProcess.Id;
-                            }
-                        }
-                        else
-                        {
-                            lock (lockObj)
-                            {
-                                directoriesToRemove.Add(dir);
-                            }
-                        }
-                    }
-                });
-
-                foreach (var dir in directoriesToRemove)
-                {
-                    _processDirectories.Remove(dir);
-                }
-
-                Dispatcher.Invoke(() =>
-                {
-                    UpdateCPUUsage(totalCpuUsage);
-                    UpdateRAMUsage(totalRamUsage);
-                    SoftwareAmt.Content = _processDirectories.Count.ToString();
-                });
-
-                Task.Delay(3000).Wait();
-            }
-        }
-
-        private Process CheckForNewProcess(string directory)
-        {
-            var files = Directory.GetFiles(directory, "*.exe");
-            foreach (var file in files)
-            {
                 try
                 {
-                    var processes = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(file));
-                    if (processes.Length > 0)
+                    // Get process metrics
+                    var metrics = _softwareManager.GetProcessMetrics();
+
+                    // Calculate total CPU and RAM usage
+                    double totalCpuUsage = metrics.Values.Sum(m => m.CpuUsage);
+                    double totalRamUsage = metrics.Values.Sum(m => m.MemoryUsage);
+
+                    // Update UI
+                    UpdateCPUUsage(Math.Min(100, totalCpuUsage));
+                    UpdateRAMUsage(Math.Min(100, totalRamUsage));
+                    UpdateSoftwareCount(_softwareManager.ActiveProcessCount);
+
+                    // Verify registry keys
+                    var invalidKeys = new List<string>();
+                    foreach (var key in _activeRegistryKeys)
                     {
-                        return processes.First();
+                        if (!_registryManager.VerifyRegistryKey(key))
+                        {
+                            invalidKeys.Add(key);
+                        }
                     }
+
+                    if (invalidKeys.Count > 0)
+                    {
+                        _logger.LogInfo($"WARNING: Detected {invalidKeys.Count} modified or missing registry keys");
+                    }
+
+                    UpdateRegistryKeyCount(_registryManager.CreatedKeyCount);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    _logger.LogError($"Error in background worker: {ex.Message}");
                 }
+
+                Thread.Sleep(3000);
             }
-            return null;
         }
 
-        private double GetCpuUsageForProcess(Process process)
-        {
-            double cpuUsage = 0;
+        #endregion
 
-            using (var cpuCounter = new PerformanceCounter("Process", "% Processor Time", process.ProcessName, true))
+        #region Logger Adapter
+
+        private class LoggerAdapter : ILogger
+        {
+            private readonly Logger _logger;
+
+            public LoggerAdapter(Logger logger)
             {
-                cpuCounter.NextValue();
-                Task.Delay(500).Wait();
-                cpuUsage = cpuCounter.NextValue() / Environment.ProcessorCount;
+                _logger = logger;
             }
 
-            return Math.Ceiling(cpuUsage * 100) / 100.0;
-        }
-
-        private double GetRamUsageForProcess(Process process, double totalMemory)
-        {
-            double ramUsage = (process.WorkingSet64 / totalMemory) * 100;
-            return Math.Ceiling(ramUsage * 100) / 100.0;
-        }
-
-        private double GetTotalMemoryInBytes()
-        {
-            double totalMemory = 0;
-            using (var searcher = new ManagementObjectSearcher("SELECT TotalVisibleMemorySize FROM Win32_OperatingSystem"))
+            public void LogError(string message)
             {
-                foreach (ManagementObject obj in searcher.Get())
-                {
-                    totalMemory = Convert.ToDouble(obj["TotalVisibleMemorySize"]) * 1024;
-                }
+                _logger.LogError(message);
             }
 
-            return totalMemory;
+            public void LogInfo(string message)
+            {
+                _logger.LogInfo(message);
+            }
+
+            public void LogWarning(string message)
+            {
+                _logger.LogInfo($"WARNING: {message}");
+            }
         }
 
         #endregion
@@ -430,7 +347,6 @@ namespace Malcrow
                 }
                 catch (Exception ex)
                 {
-                    // Handle logging errors, potentially log to a fallback location or display a message
                     Debug.WriteLine($"Failed to write to log file: {ex.Message}");
                 }
             }

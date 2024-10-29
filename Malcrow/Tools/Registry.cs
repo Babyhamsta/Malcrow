@@ -1,4 +1,5 @@
-﻿using System;
+﻿//registry.cs
+using System;
 using System.Collections.Generic;
 
 namespace Malcrow.Tools
