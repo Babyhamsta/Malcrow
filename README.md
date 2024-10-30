@@ -29,3 +29,8 @@ Nor should you look at Malcrow as an anti-virus.
 
 Yes, there is a high potential to affect other software depending on what settings you have. Settings such as decompiler/dumping tools could cause software to not run.
 This is easy to remedy though, simply stop Malcrow, untoggle certain software, and restart Malcrow.
+
+## Is Malcrow Malware?
+
+No Malcrow is not malware, Malcrow can often times be picked up by anti-viruses due to the nature of how it acts. The shuffling of hashes (to prevent detection from Malware itself), tracking of it's fake processes, and monitoring of process CPU/RAM can cause false detections which is what Malcrow faces.
+You are more than welcome to the source code of Malcrow, it is free and available for everyone. You do not have to use my pre-builds provided. Both the main UI source code and fake process source codes are available on this REPO.
