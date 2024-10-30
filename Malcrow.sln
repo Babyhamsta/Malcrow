@@ -1,9 +1,9 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.10.35027.167
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Malcrow", "Malcrow\Malcrow.csproj", "{95CF692B-E15D-4B10-9079-C3B5DC76C9D0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Malcrow", "Malcrow\Malcrow.csproj", "{95CF692B-E15D-4B10-9079-C3B5DC76C9D0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -2,8 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Malcrow.Tools
 {
@@ -210,33 +208,55 @@ namespace Malcrow.Tools
             };
         }
 
-        // Get a certain amount of random software names from certain categories.
+        // Get a certain amount of random software names from certain categories or randomly from all.
         // Example: GetRandomSoftware("AntivirusSoftware", 5);
         public static List<string> GetRandomSoftware(string category, int amount)
         {
-            if (string.IsNullOrEmpty(category))
-                throw new ArgumentNullException(nameof(category));
-
             if (amount < 0)
                 throw new ArgumentException("Amount must be non-negative", nameof(amount));
 
-            if (!softwares.ContainsKey(category))
-                return null;
+            var selectedSoftware = new List<string>();
+            var validCategories = new List<string>();
 
-            // Create a copy of the list to avoid modifying the original
-            var availableSoftware = new List<string>(softwares[category]);
-            var randomSoftwares = new List<string>();
-
-            amount = Math.Min(amount, availableSoftware.Count);
-
-            for (int i = 0; i < amount; i++)
+            // If category is null or empty, use all categories
+            if (string.IsNullOrEmpty(category) || category == "Random")
             {
-                int index = random.Next(availableSoftware.Count);
-                randomSoftwares.Add(availableSoftware[index]);
-                availableSoftware.RemoveAt(index);
+                validCategories.AddRange(softwares.Keys);
+            }
+            else if (softwares.ContainsKey(category))
+            {
+                validCategories.Add(category);
+            }
+            else
+            {
+                return null;
             }
 
-            return randomSoftwares;
+            // Create temporary copy of software lists to avoid modifying originals
+            var tempSoftwares = validCategories.ToDictionary(
+                cat => cat,
+                cat => new List<string>(softwares[cat])
+            );
+
+            while (selectedSoftware.Count < amount && validCategories.Any())
+            {
+                var randomCategory = validCategories[random.Next(validCategories.Count)];
+                var categoryList = tempSoftwares[randomCategory];
+
+                if (categoryList.Any())
+                {
+                    int index = random.Next(categoryList.Count);
+                    selectedSoftware.Add(categoryList[index]);
+                    categoryList.RemoveAt(index);
+
+                    if (!categoryList.Any())
+                    {
+                        validCategories.Remove(randomCategory);
+                    }
+                }
+            }
+
+            return selectedSoftware;
         }
 
         // Gets random names from all categories in a certain amount.

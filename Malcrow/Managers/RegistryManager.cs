@@ -51,8 +51,34 @@ namespace Malcrow.Tools
             }
         }
 
+        private bool KeyExists(string path)
+        {
+            try
+            {
+                var splitPath = path.Split('\\');
+                var hive = GetRegistryHive(splitPath[0]);
+                var keyPath = string.Join("\\", splitPath.Skip(1));
+
+                using (var key = hive.OpenSubKey(keyPath))
+                {
+                    return key != null;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to check registry key {path}: {ex.Message}");
+                return false;
+            }
+        }
+
         public void CreateRegistryKeys(List<string> keyPaths)
         {
+            if (keyPaths == null || !keyPaths.Any())
+            {
+                _logger.LogWarning("No registry keys provided to create");
+                return;
+            }
+
             foreach (var path in keyPaths)
             {
                 try
@@ -62,22 +88,20 @@ namespace Malcrow.Tools
                     var keyPath = string.Join("\\", splitPath.Skip(1));
                     var uniqueValue = Guid.NewGuid().ToString();
 
-                    RegistryKey key = null;
-                    try
+                    // Don't overwrite existing keys
+                    if (KeyExists(path))
                     {
-                        key = hive.CreateSubKey(keyPath);
+                        _logger.LogInfo($"Skipping existing registry key: {path}");
+                        continue;
+                    }
+
+                    using (var key = hive.CreateSubKey(keyPath))
+                    {
                         if (key != null)
                         {
                             key.SetValue("MalcrowIdentifier", uniqueValue);
                             _createdKeys.Add(path, uniqueValue);
                             _logger.LogInfo($"Created registry key: {path}");
-                        }
-                    }
-                    finally
-                    {
-                        if (key != null)
-                        {
-                            key.Close();
                         }
                     }
                 }

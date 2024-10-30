@@ -7,10 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using System.Management;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using System.ComponentModel;
 using Malcrow.Tools;
 
@@ -56,11 +54,12 @@ namespace Malcrow
             };
             _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
 
-            var contextMenu = new ContextMenu();
-            contextMenu.MenuItems.Add("Open", (s, e) => ShowMainWindow());
-            contextMenu.MenuItems.Add("Exit", (s, e) => Close());
+            var contextMenuStrip = new ContextMenuStrip();
+            contextMenuStrip.Items.Add("Open", null, (s, e) => ShowMainWindow());
+            contextMenuStrip.Items.Add("Exit", null, (s, e) => Close());
 
-            _notifyIcon.ContextMenu = contextMenu;
+            _notifyIcon.ContextMenuStrip = contextMenuStrip;
+
         }
 
         private void MinimizeToTray()
@@ -112,18 +111,39 @@ namespace Malcrow
                     StartStopButton.Content = "Stop Monitoring";
                     StartStopButton.Background = (Brush)new BrushConverter().ConvertFromString("#4c4c4c");
 
-                    // Create registry keys
-                    var registryKeys = _registry.GetRandomRegistryKeys(10);
-                    _registryManager.CreateRegistryKeys(registryKeys);
-                    _activeRegistryKeys.Clear();
-                    _activeRegistryKeys.AddRange(registryKeys);
-                    UpdateRegistryKeyCount(_registryManager.CreatedKeyCount);
+                    // Get values from UI sliders
+                    int registryKeyCount = (int)RegistryAmountSlider.Value;
+                    int softwareCount = (int)SoftwareAmountSlider.Value;
 
-                    // Launch software processes
-                    await _softwareManager.LaunchSoftwareAsync(
-                        new List<string> { "Debuggers", "VirtualMachines", "SandboxingTools" },
-                        10
-                    );
+                    // Get categories from ViewModel
+                    var viewModel = (SettingsViewModel)DataContext;
+                    var selectedCategories = viewModel.SelectedCategories.ToList();
+
+                    // If no categories selected, use Random
+                    if (!selectedCategories.Any())
+                    {
+                        selectedCategories = new List<string> { "Random" };
+                    }
+
+                    // Create registry keys
+                    var category = selectedCategories.Contains("Random") ? null : selectedCategories[0];
+                    var registryKeys = _registry.GetRandomRegistryKeys(category, registryKeyCount);
+
+                    if (registryKeys != null && registryKeys.Any())
+                    {
+                        _registryManager.CreateRegistryKeys(registryKeys);
+                        _activeRegistryKeys.Clear();
+                        _activeRegistryKeys.AddRange(registryKeys);
+                        UpdateRegistryKeyCount(_registryManager.CreatedKeyCount);
+                    }
+                    else
+                    {
+                        _logger.LogInfo("No registry keys were generated");
+                        UpdateRegistryKeyCount(0);
+                    }
+
+                    // Launch software processes with selected categories
+                    await _softwareManager.LaunchSoftwareAsync(selectedCategories, softwareCount);
 
                     _backgroundWorker.RunWorkerAsync();
                     UpdateSoftwareCount(_softwareManager.ActiveProcessCount);

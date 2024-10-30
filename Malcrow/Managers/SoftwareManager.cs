@@ -4,19 +4,22 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Management;
-using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace Malcrow.Tools
 {
     public class SoftwareManager : IDisposable
     {
-        private readonly ConcurrentDictionary<string, ProcessInfo> _processes;
+        private readonly ConcurrentDictionary<string, ProcessInfo> _processes = new();
         private readonly ILogger _logger;
-        private readonly CancellationTokenSource _monitorCancellation;
+        private readonly CancellationTokenSource _monitorCancellation = new();
+        private readonly Dictionary<int, PerformanceCounter> _cpuCounters = new();
         private readonly Task _monitorTask;
+        private readonly object _metricsLock = new();
+        private const int PROCESS_CHECK_INTERVAL = 500;
         private const string FAKE_PROCESS_NAME = "Malcrow_Fake_Process.exe";
 
         public int ActiveProcessCount => _processes.Count;
@@ -28,92 +31,57 @@ namespace Malcrow.Tools
             public string SoftwareName { get; set; }
             public DateTime LastSeen { get; set; }
             public bool IsBeingCleaned { get; set; }
+            public string CurrentExecutablePath { get; set; }
+            public HashSet<string> PreviousExecutablePaths { get; } = new();
+            public bool IsInitialized { get; set; }
         }
 
         public SoftwareManager(ILogger logger)
         {
-            _processes = new ConcurrentDictionary<string, ProcessInfo>();
             _logger = logger;
-            _monitorCancellation = new CancellationTokenSource();
             _monitorTask = StartProcessMonitor();
         }
 
-        private Task StartProcessMonitor()
+        private Task StartProcessMonitor() => Task.Run(async () =>
         {
-            return Task.Run(async () =>
+            try
             {
                 while (!_monitorCancellation.Token.IsCancellationRequested)
                 {
-                    try
-                    {
-                        await UpdateProcessStatus();
-                        await Task.Delay(1000, _monitorCancellation.Token);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError($"Process monitor error: {ex.Message}");
-                    }
+                    await UpdateProcessStatus();
+                    await Task.Delay(PROCESS_CHECK_INTERVAL, _monitorCancellation.Token);
                 }
-            }, _monitorCancellation.Token);
-        }
+            }
+            catch (OperationCanceledException) { }
+        });
 
         private async Task UpdateProcessStatus()
         {
-            var currentTime = DateTime.Now;
             var processesToRemove = new List<string>();
 
-            foreach (var kvp in _processes)
+            foreach (var (dir, info) in _processes)
             {
-                if (kvp.Value.IsBeingCleaned) continue;
-
-                Process currentProcess = null;
-                bool processFound = false;
+                if (info.IsBeingCleaned) continue;
 
                 try
                 {
-                    try
+                    if (TryGetProcessById(info.ProcessId, out var currentProcess))
                     {
-                        currentProcess = Process.GetProcessById(kvp.Value.ProcessId);
-                        kvp.Value.LastSeen = currentTime;
-                        processFound = true;
+                        if (!info.IsInitialized) InitializeProcessMetrics(currentProcess);
+                        info.LastSeen = DateTime.Now;
                     }
-                    catch (ArgumentException)
+                    else if (await TryReacquireProcess(info))
                     {
-                        // Process not found by ID, try to find restarted process
-                        currentProcess = await FindRestartedProcess(kvp.Value.SoftwareName, kvp.Value.Directory);
-
-                        if (currentProcess != null)
-                        {
-                            kvp.Value.ProcessId = currentProcess.Id;
-                            kvp.Value.LastSeen = currentTime;
-                            processFound = true;
-                            _logger.LogInfo($"Process {kvp.Value.SoftwareName} restarted with new PID: {currentProcess.Id}");
-                        }
-                        else if (currentTime - kvp.Value.LastSeen > TimeSpan.FromSeconds(30)) // Increased timeout
-                        {
-                            processesToRemove.Add(kvp.Key);
-                            _logger.LogInfo($"Process {kvp.Value.SoftwareName} not found after timeout, marking for removal");
-                        }
+                        info.LastSeen = DateTime.Now;
+                    }
+                    else if (DateTime.Now - info.LastSeen > TimeSpan.FromSeconds(30))
+                    {
+                        processesToRemove.Add(dir);
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError($"Error updating process status: {ex.Message}");
-                    if (currentTime - kvp.Value.LastSeen > TimeSpan.FromSeconds(30))
-                    {
-                        processesToRemove.Add(kvp.Key);
-                    }
-                }
-                finally
-                {
-                    if (!processFound)
-                    {
-                        currentProcess?.Dispose();
-                    }
                 }
             }
 
@@ -123,114 +91,118 @@ namespace Malcrow.Tools
             }
         }
 
+        private bool TryGetProcessById(int processId, out Process process)
+        {
+            process = null;
+            try
+            {
+                process = Process.GetProcessById(processId);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<bool> TryReacquireProcess(ProcessInfo info)
+        {
+            var process = await FindRestartedProcess(info.SoftwareName, info.Directory);
+            if (process != null)
+            {
+                info.ProcessId = process.Id;
+                info.IsInitialized = true;
+                _logger.LogInfo($"Reacquired process {info.SoftwareName} with new PID: {process.Id}");
+                return true;
+            }
+            return false;
+        }
+
         private async Task<Process> FindRestartedProcess(string softwareName, string directory)
         {
-            ManagementObjectSearcher searcher = null;
-            ManagementObjectCollection results = null;
+            var query = new WqlObjectQuery(
+            "SELECT ProcessId, CommandLine FROM Win32_Process " +
+            $"WHERE CommandLine LIKE '%{softwareName} --clone%'");
 
-            try
+            using var searcher = new ManagementObjectSearcher(query);
+            foreach (ManagementObject obj in searcher.Get())
             {
-                // Look for processes based on executable name and working directory
-                var wmiQuery = $@"SELECT ProcessId, CommandLine, ExecutablePath 
-                         FROM Win32_Process 
-                         WHERE CommandLine LIKE '%{softwareName}%' 
-                         OR ExecutablePath LIKE '%{FAKE_PROCESS_NAME}%'";
-
-                searcher = new ManagementObjectSearcher(wmiQuery);
-                results = searcher.Get();
-
-                foreach (ManagementObject obj in results)
+                int pid = Convert.ToInt32(obj["ProcessId"]);
+                if (TryGetProcessById(pid, out var proc))
                 {
-                    try
-                    {
-                        int pid = Convert.ToInt32(obj["ProcessId"]);
-                        Process proc = Process.GetProcessById(pid);
-
-                        // Get the process's current working directory
-                        string procDirectory = null;
-                        try
-                        {
-                            using (var searcher2 = new ManagementObjectSearcher(
-                                $"SELECT CurrentDirectory FROM Win32_Process WHERE ProcessId = {pid}"))
-                            using (var results2 = searcher2.Get())
-                            {
-                                foreach (ManagementObject proc2 in results2)
-                                {
-                                    procDirectory = proc2["CurrentDirectory"]?.ToString();
-                                    break;
-                                }
-                            }
-                        }
-                        catch
-                        {
-                            // If we can't get the directory through WMI, try process module
-                            try
-                            {
-                                procDirectory = Path.GetDirectoryName(proc.MainModule.FileName);
-                            }
-                            catch { /* Ignore if we can't get directory */ }
-                        }
-
-                        // Check if this process matches our criteria
-                        if (procDirectory != null &&
-                            (procDirectory.Contains(directory) ||
-                             directory.Contains(procDirectory)))
-                        {
-                            _logger.LogInfo($"Found restarted process in directory {directory} with PID {pid}");
-                            return proc;
-                        }
-                        else
-                        {
-                            proc.Dispose();
-                        }
-                    }
-                    catch
-                    {
-                        // Process might have terminated, continue searching
-                        continue;
-                    }
-                    finally
-                    {
-                        obj.Dispose();
-                    }
+                    InitializeProcessMetrics(proc);
+                    return proc;
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error finding restarted process: {ex.Message}");
-                return null;
-            }
-            finally
-            {
-                results?.Dispose();
-                searcher?.Dispose();
-            }
-
-            // If we haven't found the process yet, try one last method
-            try
-            {
-                var allProcesses = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(FAKE_PROCESS_NAME));
-                foreach (var proc in allProcesses)
-                {
-                    try
-                    {
-                        if (proc.MainModule.FileName.Contains(directory))
-                        {
-                            return proc;
-                        }
-                    }
-                    catch
-                    {
-                        proc.Dispose();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error in fallback process search: {ex.Message}");
-            }
-
             return null;
+        }
+
+        private void InitializeProcessMetrics(Process process)
+        {
+            lock (_metricsLock)
+            {
+                var instanceName = GetUniqueProcessInstanceName(process);
+                if (string.IsNullOrEmpty(instanceName)) return;
+
+                if (_cpuCounters.TryGetValue(process.Id, out var oldCounter)) oldCounter.Dispose();
+
+                var counter = new PerformanceCounter("Process", "% Processor Time", instanceName, true);
+                counter.NextValue();
+                _cpuCounters[process.Id] = counter;
+            }
+        }
+
+        private string GetUniqueProcessInstanceName(Process process)
+        {
+            var instanceNames = new PerformanceCounterCategory("Process").GetInstanceNames();
+            var baseName = process.ProcessName.Split('#')[0];
+
+            return instanceNames.FirstOrDefault(name => name.StartsWith(baseName, StringComparison.OrdinalIgnoreCase))
+                ?? process.ProcessName;
+        }
+
+        private async Task CleanupProcessSafely(string directory)
+        {
+            if (!_processes.TryGetValue(directory, out var info) || info.IsBeingCleaned) return;
+
+            info.IsBeingCleaned = true;
+            await TerminateProcessTree(info.ProcessId);
+            await CleanupDirectorySafely(directory);
+            _processes.TryRemove(directory, out _);
+        }
+
+        private async Task TerminateProcessTree(int pid)
+        {
+            var query = $"SELECT ProcessId FROM Win32_Process WHERE ParentProcessId = {pid}";
+
+            using var searcher = new ManagementObjectSearcher(query);
+            foreach (var childObj in searcher.Get())
+            {
+                int childPid = Convert.ToInt32(childObj["ProcessId"]);
+                await TerminateProcessTree(childPid);
+            }
+
+            if (TryGetProcessById(pid, out var process)) process.Kill();
+        }
+
+        private async Task CleanupDirectorySafely(string directory)
+        {
+            if (!Directory.Exists(directory)) return;
+
+            var attempts = 3;
+            while (attempts-- > 0)
+            {
+                try
+                {
+                    Directory.Delete(directory, true);
+                    return;
+                }
+                catch
+                {
+                    await Task.Delay(1000);
+                }
+            }
+            _logger.LogError($"Failed to clean up directory: {directory}");
         }
 
         public async Task LaunchSoftwareAsync(List<string> categories, int amountPerCategory)
@@ -256,7 +228,7 @@ namespace Malcrow.Tools
                 return;
             }
 
-            var tasks = softwareList.Select(software => LaunchSingleProcess(software));
+            var tasks = softwareList.Select(LaunchSingleProcess);
             await Task.WhenAll(tasks);
         }
 
@@ -265,29 +237,22 @@ namespace Malcrow.Tools
             var uniqueDir = Path.Combine("Fake_Processes", Guid.NewGuid().ToString());
             var appPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, FAKE_PROCESS_NAME);
 
-            if (!File.Exists(appPath))
-            {
-                _logger.LogError($"The application '{FAKE_PROCESS_NAME}' does not exist.");
-                return;
-            }
+            Directory.CreateDirectory(uniqueDir);
 
-            Process process = null;
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = appPath,
+                Arguments = softwareName,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                WorkingDirectory = uniqueDir
+            };
+
             try
             {
-                Directory.CreateDirectory(uniqueDir);
-
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = appPath,
-                    Arguments = softwareName,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    WorkingDirectory = uniqueDir
-                };
-
-                process = Process.Start(startInfo);
+                using var process = Process.Start(startInfo);
                 if (process != null)
                 {
                     var processInfo = new ProcessInfo
@@ -296,7 +261,7 @@ namespace Malcrow.Tools
                         Directory = uniqueDir,
                         SoftwareName = softwareName,
                         LastSeen = DateTime.Now,
-                        IsBeingCleaned = false
+                        CurrentExecutablePath = appPath
                     };
 
                     if (_processes.TryAdd(uniqueDir, processInfo))
@@ -317,224 +282,89 @@ namespace Malcrow.Tools
                 await CleanupDirectorySafely(uniqueDir);
                 throw;
             }
-            finally
-            {
-                process?.Dispose();
-            }
-        }
-
-        private async Task TerminateProcessTree(int parentPid)
-        {
-            ManagementObjectSearcher searcher = null;
-            ManagementObjectCollection results = null;
-
-            try
-            {
-                var query = $"SELECT ProcessId FROM Win32_Process WHERE ParentProcessId = {parentPid}";
-                searcher = new ManagementObjectSearcher(query);
-                results = searcher.Get();
-
-                var childTasks = results.Cast<ManagementObject>()
-                    .Select(async obj =>
-                    {
-                        try
-                        {
-                            int pid = Convert.ToInt32(obj["ProcessId"]);
-                            await TerminateProcessTree(pid);
-                        }
-                        finally
-                        {
-                            obj.Dispose();
-                        }
-                    });
-
-                await Task.WhenAll(childTasks);
-
-                Process process = null;
-                try
-                {
-                    process = Process.GetProcessById(parentPid);
-                    process.Kill();
-                }
-                catch (ArgumentException)
-                {
-                    // Process already terminated
-                }
-                finally
-                {
-                    process?.Dispose();
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error terminating process tree: {ex.Message}");
-            }
-            finally
-            {
-                if (results != null) results.Dispose();
-                if (searcher != null) searcher.Dispose();
-            }
         }
 
         public Dictionary<string, ProcessMetrics> GetProcessMetrics()
         {
-            var metrics = new Dictionary<string, ProcessMetrics>();
-            foreach (var kvp in _processes)
+            lock (_metricsLock)
             {
-                if (kvp.Value.IsBeingCleaned) continue;
-
-                Process proc = null;
-                try
-                {
-                    proc = Process.GetProcessById(kvp.Value.ProcessId);
-                    metrics[kvp.Key] = new ProcessMetrics
-                    {
-                        CpuUsage = GetCpuUsage(proc),
-                        MemoryUsage = GetMemoryUsage(proc)
-                    };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Error getting metrics for PID {kvp.Value.ProcessId}: {ex.Message}");
-                }
-                finally
-                {
-                    proc?.Dispose();
-                }
+                return _processes
+                    .Where(p => !p.Value.IsBeingCleaned)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => new ProcessMetrics
+                        {
+                            CpuUsage = GetCpuUsage(kvp.Value),
+                            MemoryUsage = GetMemoryUsage(kvp.Value)
+                        });
             }
-            return metrics;
         }
 
-        private double GetCpuUsage(Process process)
+        private double GetCpuUsage(ProcessInfo info)
         {
-            PerformanceCounter cpuCounter = null;
-            try
+            if (_cpuCounters.TryGetValue(info.ProcessId, out var counter))
             {
-                cpuCounter = new PerformanceCounter("Process", "% Processor Time", process.ProcessName, true);
-                cpuCounter.NextValue();
-                Thread.Sleep(100);
-                return Math.Round(cpuCounter.NextValue() / Environment.ProcessorCount, 2);
+                return Math.Round(counter.NextValue() / Environment.ProcessorCount, 2);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error getting CPU usage: {ex.Message}");
-                return 0;
-            }
-            finally
-            {
-                cpuCounter?.Dispose();
-            }
+            return 0;
         }
 
-        private double GetMemoryUsage(Process process)
+        private double GetMemoryUsage(ProcessInfo info)
         {
             try
             {
-                return Math.Round((double)process.WorkingSet64 / (1024 * 1024), 2);
+                using var searcher = new ManagementObjectSearcher(
+                    $"SELECT WorkingSetSize FROM Win32_Process WHERE ProcessId = {info.ProcessId}");
+                var result = searcher.Get().Cast<ManagementObject>().FirstOrDefault();
+                if (result != null)
+                {
+                    double workingSetBytes = Convert.ToDouble(result["WorkingSetSize"]);
+                    double totalMemoryBytes = GetTotalPhysicalMemory();
+                    double memoryUsagePercent = totalMemoryBytes > 0 ? (workingSetBytes / totalMemoryBytes) * 100 : 0;
+                    return Math.Round(memoryUsagePercent, 2);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error getting memory usage: {ex.Message}");
-                return 0;
+                _logger.LogError($"Error retrieving memory usage for PID {info.ProcessId}: {ex.Message}");
             }
+            return 0;
         }
+
+        private double GetTotalPhysicalMemory()
+        {
+            try
+            {
+                using var searcher = new ManagementObjectSearcher("SELECT TotalVisibleMemorySize FROM Win32_OperatingSystem");
+                var result = searcher.Get().Cast<ManagementObject>().FirstOrDefault();
+                if (result != null)
+                {
+                    // TotalVisibleMemorySize is in KB, convert it to bytes
+                    ulong totalMemoryKB = Convert.ToUInt64(result["TotalVisibleMemorySize"]);
+                    return totalMemoryKB * 1024; // Convert to bytes
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting total physical memory: {ex.Message}");
+            }
+            return 0;
+        }
+
 
         public async Task CleanupAllProcesses()
         {
-            try
-            {
-                _monitorCancellation.Cancel();
-                await _monitorTask;
-
-                var cleanupTasks = _processes.Keys.Select(CleanupProcessSafely);
-                await Task.WhenAll(cleanupTasks);
-
-                _processes.Clear();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error during cleanup: {ex.Message}");
-                throw;
-            }
-        }
-
-        private async Task CleanupProcessSafely(string directory)
-        {
-            if (!_processes.TryGetValue(directory, out var processInfo) || processInfo.IsBeingCleaned)
-                return;
-
-            processInfo.IsBeingCleaned = true;
-
-            try
-            {
-                await TerminateProcessTree(processInfo.ProcessId);
-                _logger.LogInfo($"Terminated process {processInfo.SoftwareName} (PID: {processInfo.ProcessId})");
-
-                await Task.Delay(1000);
-                await CleanupDirectorySafely(directory);
-
-                _processes.TryRemove(directory, out _);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error cleaning up process: {ex.Message}");
-            }
-        }
-
-        private async Task CleanupDirectorySafely(string directory)
-        {
-            if (!Directory.Exists(directory)) return;
-
-            for (int attempt = 1; attempt <= 3; attempt++)
-            {
-                try
-                {
-                    var files = Directory.GetFiles(directory);
-                    await Task.WhenAll(files.Select(ForceReleaseFile));
-
-                    Directory.Delete(directory, true);
-                    _logger.LogInfo($"Cleaned up directory: {directory}");
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    if (attempt == 3)
-                    {
-                        _logger.LogError($"Failed to clean up directory after {attempt} attempts: {ex.Message}");
-                    }
-                    await Task.Delay(1000);
-                }
-            }
-        }
-
-        private async Task ForceReleaseFile(string filePath)
-        {
-            FileStream fs = null;
-            try
-            {
-                fs = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-            }
-            catch (Exception)
-            {
-                await Task.Delay(500);
-            }
-            finally
-            {
-                fs?.Dispose();
-            }
+            _monitorCancellation.Cancel();
+            await Task.WhenAll(_processes.Keys.Select(CleanupProcessSafely));
+            _processes.Clear();
         }
 
         public void Dispose()
         {
             _monitorCancellation.Cancel();
-            try
-            {
-                CleanupAllProcesses().GetAwaiter().GetResult();
-            }
-            finally
-            {
-                _monitorCancellation.Dispose();
-            }
+            CleanupAllProcesses().GetAwaiter().GetResult();
+            lock (_metricsLock) _cpuCounters.Values.ToList().ForEach(c => c.Dispose());
+            _monitorCancellation.Dispose();
         }
     }
 

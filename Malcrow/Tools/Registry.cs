@@ -1,6 +1,7 @@
 ﻿//registry.cs
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Malcrow.Tools
 {
@@ -91,24 +92,41 @@ namespace Malcrow.Tools
         // Example: GetRandomRegistryKey("VirtualBox", 5);
         public List<string> GetRandomRegistryKeys(string category, int amount)
         {
-            if (registryKeys.ContainsKey(category))
+            if (amount <= 0)
             {
-                var keys = registryKeys[category];
-                var randomKeys = new List<string>();
+                return new List<string>();
+            }
 
-                for (int i = 0; i < amount && keys.Count > 0; i++)
+            // Handle Random or null category by selecting a random category
+            if (string.IsNullOrEmpty(category) || category == "Random")
+            {
+                var allCategories = registryKeys.Keys.ToList();
+                if (!allCategories.Any())
                 {
-                    int index = random.Next(keys.Count);
-                    randomKeys.Add(keys[index]);
-                    keys.RemoveAt(index);
+                    return new List<string>();
                 }
+                category = allCategories[random.Next(allCategories.Count)];
+            }
 
-                return randomKeys;
-            }
-            else
+            if (!registryKeys.ContainsKey(category))
             {
-                return null;
+                return new List<string>();
             }
+
+            var keys = registryKeys[category];
+            var randomKeys = new List<string>();
+
+            // Create a copy of the keys to avoid modifying the original list
+            var availableKeys = new List<string>(keys);
+
+            for (int i = 0; i < amount && availableKeys.Count > 0; i++)
+            {
+                int index = random.Next(availableKeys.Count);
+                randomKeys.Add(availableKeys[index]);
+                availableKeys.RemoveAt(index);
+            }
+
+            return randomKeys;
         }
 
         // Gets random keys from all categories in a certain amount.
@@ -121,11 +139,13 @@ namespace Malcrow.Tools
             }
 
             var randomKeys = new List<string>();
-            for (int i = 0; i < amount && allKeys.Count > 0; i++)
+            var availableKeys = new List<string>(allKeys);
+
+            for (int i = 0; i < amount && availableKeys.Count > 0; i++)
             {
-                int index = random.Next(allKeys.Count);
-                randomKeys.Add(allKeys[index]);
-                allKeys.RemoveAt(index);
+                int index = random.Next(availableKeys.Count);
+                randomKeys.Add(availableKeys[index]);
+                availableKeys.RemoveAt(index);
             }
 
             return randomKeys;
@@ -134,14 +154,12 @@ namespace Malcrow.Tools
         // Returns all the keys for a certain category, good for really spoofing the PC as 1 VM type
         public List<string> GetAllRegistryKeys(string category)
         {
-            if (registryKeys.ContainsKey(category))
+            if (string.IsNullOrEmpty(category) || !registryKeys.ContainsKey(category))
             {
-                return new List<string>(registryKeys[category]);
+                return new List<string>();
             }
-            else
-            {
-                return null;
-            }
+
+            return new List<string>(registryKeys[category]);
         }
     }
 }
